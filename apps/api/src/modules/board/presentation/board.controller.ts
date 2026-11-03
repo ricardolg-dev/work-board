@@ -1,7 +1,8 @@
 import { Body, Controller, Get, Param, Post, Res } from "@nestjs/common";
-import { createTaskSchema, moveTaskSchema } from "@repo/contracts";
+import { bulkMoveTasksSchema, createTaskSchema, moveTaskSchema } from "@repo/contracts";
 import { type Response } from "express";
 
+import { BulkMoveTasksUseCase } from "../application/use-cases/bulk-move-tasks.use-case";
 import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
 import { GetBoardUseCase } from "../application/use-cases/get-board.use-case";
 import { MoveTaskUseCase } from "../application/use-cases/move-task.use-case";
@@ -21,6 +22,7 @@ export class BoardController {
     private readonly createTask: CreateTaskUseCase,
     private readonly moveTask: MoveTaskUseCase,
     private readonly undoBoard: UndoBoardUseCase,
+    private readonly bulkMoveTasks: BulkMoveTasksUseCase,
   ) {}
 
   @Get("board")
@@ -56,6 +58,28 @@ export class BoardController {
     }
 
     const outcome = await this.moveTask.execute(id, parsed.data.destination);
+    response.status(httpStatusFor(outcome.result.code));
+    return { result: outcome.result, board: outcome.state };
+  }
+
+  @Post("tasks/bulk-move")
+  async bulkMove(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<MutationResponse> {
+    const parsed = bulkMoveTasksSchema.safeParse(body);
+    if (!parsed.success) {
+      const current = await this.getBoard.execute();
+      response.status(httpStatusFor("validation_error"));
+      return validationResponse(
+        parsed.error.issues[0]?.message ?? "Enter task ids and a destination.",
+        current,
+      );
+    }
+    const outcome = await this.bulkMoveTasks.execute(
+      parsed.data.ids,
+      parsed.data.destination,
+    );
     response.status(httpStatusFor(outcome.result.code));
     return { result: outcome.result, board: outcome.state };
   }

@@ -19,7 +19,7 @@ export type HistoryEntry =
   | { type: "TASK_CREATED"; taskId: string }
   | { type: "TASK_MOVED"; taskId: string; from: Column; to: Column };
 
-type SuccessCode = "task_created" | "task_moved" | "undo_success";
+type SuccessCode = "task_created" | "task_moved" | "tasks_moved" | "undo_success";
 type NoChangeCode = "already_in_column" | "nothing_to_undo";
 type ErrorCode =
   | "validation_error"

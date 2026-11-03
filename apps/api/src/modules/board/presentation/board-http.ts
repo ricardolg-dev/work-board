@@ -3,6 +3,7 @@ import { type ActionResult } from "../domain/board.types";
 const HTTP_STATUS: Record<ActionResult["code"], number> = {
   task_created: 201,
   task_moved: 200,
+  tasks_moved: 200,
   undo_success: 200,
   already_in_column: 200,
   nothing_to_undo: 200,

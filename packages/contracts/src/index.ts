@@ -19,6 +19,7 @@ export {
   type BoardMutation,
 } from "./board/action-result.schema";
 export { boardSchema, type Board } from "./board/board.schema";
+export { bulkMoveTasksSchema, type BulkMoveTasksInput } from "./board/bulk-move.schema";
 export {
   columnSchema,
   createTaskSchema,

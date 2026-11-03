@@ -7,6 +7,7 @@ import { validateEnv } from "../../config/env.schema";
 import { CACHE_PORT, type CachePort } from "../../shared/cache/cache.port";
 import { GlobalExceptionFilter } from "../../shared/errors/global-exception.filter";
 import { createValidationPipe } from "../../shared/validation/create-validation-pipe";
+import { BulkMoveTasksUseCase } from "./application/use-cases/bulk-move-tasks.use-case";
 import { CreateTaskUseCase } from "./application/use-cases/create-task.use-case";
 import { GetBoardUseCase } from "./application/use-cases/get-board.use-case";
 import { MoveTaskUseCase } from "./application/use-cases/move-task.use-case";
@@ -33,6 +34,12 @@ async function createBoardApp(
     ],
     controllers: [BoardController],
     providers: [
+      {
+        provide: BulkMoveTasksUseCase,
+        useFactory: (repo: BoardRepository, boardCache: CachePort) =>
+          new BulkMoveTasksUseCase(repo, 2, boardCache, 60),
+        inject: [BOARD_REPOSITORY, CACHE_PORT],
+      },
       { provide: BOARD_REPOSITORY, useValue: repository },
       { provide: CACHE_PORT, useValue: cache },
       {
@@ -125,6 +132,32 @@ describe("Board HTTP", () => {
       wipLimit: 2,
       canUndo: false,
     });
+  });
+
+  it("moves selected tasks through the bulk endpoint", async () => {
+    const server = app.getHttpServer();
+    const createdA = await request(server)
+      .post("/api/v1/tasks")
+      .send({ title: "A" })
+      .expect(201);
+    const createdB = await request(server)
+      .post("/api/v1/tasks")
+      .send({ title: "B" })
+      .expect(201);
+    const ids = [
+      findTask(createdA.body.board, "A").id,
+      findTask(createdB.body.board, "B").id,
+    ];
+    const moved = await request(server)
+      .post("/api/v1/tasks/bulk-move")
+      .send({ ids, destination: "done" })
+      .expect(200);
+    expect(moved.body.result.code).toBe("tasks_moved");
+    expect(moved.body.board.columns.done.map((task: BoardTaskBody) => task.id)).toEqual(
+      ids,
+    );
+    const saved = await request(server).get("/api/v1/board").expect(200);
+    expect(saved.body).toEqual(moved.body.board);
   });
 
   it("creates a task in To Do", async () => {
